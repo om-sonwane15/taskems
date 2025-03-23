@@ -57,12 +57,9 @@ router.post("/forgot", async (req, res) =>{
   try{
     const { email } = req.body;
     const user = await User.findOne({email});             
-    if (!user) return res.status(400).json({ error: "User not found" });
-
-    //Generate a reset token
+    if (!user) return res.status(400).json({error: "User not found"});
     const resetToken = generateToken(user, "60m");  //used for new token and storing it in global varible 
     resetTokens[user.email] = resetToken;
-
     const transporter = nodemailer.createTransport({   //used for smtp,reusable transporter object
       host: "sandbox.smtp.mailtrap.io",
       port: 2525,                                      
@@ -90,18 +87,15 @@ router.post("/forgot", async (req, res) =>{
 router.post("/reset", async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
-
     //check if all required fields are provided
     if (!email || !token || !newPassword)
       return res.status(400).json({msg: "Missing required fields"});
-
     //find user by email
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({msg: "User not found"});
     const decoded = jwt.verify(token, process.env.JWT_SECRET);       //verify the reset token
     if (decoded.email !== email)
       return res.status(400).json({msg: "Token does not match the email"});
-
     //check if the reset token is valid or expired
     if (!resetTokens[email] || resetTokens[email] !== token){
       return res.status(400).json({msg: "Invalid or expired token"});
@@ -115,53 +109,37 @@ router.post("/reset", async (req, res) => {
   }
 });
 
-//fetch all users (only accessible to admins) 
-router.get("/employee", verifyToken, isAdmin, async (req, res) => {
-  try {
-    const { page = 1, limit = 10, search = "" } = req.query;
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-
-    // Build search query (search by name or email)
-    const searchQuery = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } }
-          ]
+//change password
+router.post("/changepass", verifyToken, async (req, res)=>{
+    try{const {oldPassword, newPassword} = req.body;
+        if (!oldPassword || !newPassword){
+            return res.status(400).json({error:"Old and new passwords are required"});
         }
-      : {};
-
-    const totalUsers = await User.countDocuments(searchQuery);
-
-    const users = await User.find(searchQuery)
-      .skip((pageNum - 1) * limitNum)
-      .limit(limitNum)
-      .select("-password"); // exclude password for security
-
-    res.status(200).json({
-      totalUsers,
-      page: pageNum,
-      totalPages: Math.ceil(totalUsers / limitNum),
-      users
-    });
-  } catch (err) {
-    res.status(500).json({
-      message: "Error fetching users",
-      details: err.message
-    });
-  }
-});
-
-//can be accessed by any logged-in user (not just admins)
-router.get("/profile", verifyToken, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({message: 'Error fetching user profile', details: err.message});
+        //check if user is admin or employee
+        const user = await User.findById(req.user.id) || await Employee.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({error:"User not found"});
+        }
+        //check if old password matches
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({error:"Incorrect old password"});
+        }
+        user.password = await bcrypt.hash(newPassword, 10);  
+        await user.save();
+        res.status(200).json({message:"Password changed successfully"});
+    } catch (err){
+        res.status(500).json({error:"Error changing password",details: err.message});
     }
 });
 
+//can be accessed by any logged-in 
+router.get("/profile", verifyToken, async (req, res) =>{
+  try{
+      const user = await User.findById(req.user.id);
+      res.json(user);
+  } catch (err){
+      res.status(500).json({message: 'Error fetching user profile', details: err.message});
+  }
+});
 module.exports = router;
