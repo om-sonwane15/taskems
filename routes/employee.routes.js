@@ -38,7 +38,6 @@ router.get("/emplist", verifyToken, async (req, res)=>{
         res.status(200).json({
             totalEmployees,
             page: pageNum,
-            totalPages: Math.ceil(totalEmployees / limitNum),
             employees
         });
     }catch (err){
