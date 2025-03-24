@@ -60,13 +60,16 @@ router.get("/deptlist", verifyToken, async (req, res)=>{
   }
 });
 
-//department list (with pagination)
+//department list (with pagination&search)
 router.get("/departments", verifyToken, async(req, res)=>{
-  try{const {page = 1, limit = 10} = req.query;
+  try{const {page = 1, limit = 10, search = ""} = req.query;
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
-      const totalDepartments = await Department.countDocuments();
-      const departments = await Department.find()
+      const searchQuery = search
+          ? {name: {$regex: search, $options: "i"}}
+          : {};                                  //if not specified gives all list
+      const totalDepartments = await Department.countDocuments(searchQuery);
+      const departments = await Department.find(searchQuery)
           .skip((pageNum - 1) * limitNum)
           .limit(limitNum);
       res.status(200).json({totalDepartments,page: pageNum,departments});
@@ -74,4 +77,19 @@ router.get("/departments", verifyToken, async(req, res)=>{
       res.status(500).json({message:"Error in getting department list",details: err.message});
   }
 });
+
+// //department list (with pagination)
+// router.get("/departments", verifyToken, async(req, res)=>{
+//   try{const {page = 1, limit = 10} = req.query;
+//       const pageNum = parseInt(page, 10);
+//       const limitNum = parseInt(limit, 10);
+//       const totalDepartments = await Department.countDocuments();
+//       const departments = await Department.find()
+//           .skip((pageNum - 1) * limitNum)
+//           .limit(limitNum);
+//       res.status(200).json({totalDepartments,page: pageNum,departments});
+//   }catch (err){
+//       res.status(500).json({message:"Error in getting department list",details: err.message});
+//   }
+// });
 module.exports = router;
