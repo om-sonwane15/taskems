@@ -67,4 +67,30 @@ router.put("/updateprofile", verifyToken, async (req, res) =>{
        res.status(500).json({message:"Error updating profile", details: err.message});
    }
 });
+
+// //employees list(admin) with Search & Pagination
+// router.get("/details", verifyToken,isAdmin, async (req, res)=>{
+//     try{
+//         const {page = 1, limit = 10, search = ""} = req.query;
+//         const pageNum = parseInt(page, 10);
+//         const limitNum = parseInt(limit, 10);
+//         const searchQuery = search
+//             ?{
+//                 $or:[
+//                 {name:{$regex: search, $options: "i"}},
+//                 {email:{$regex: search, $options: "i"}}
+//                 ]
+//             }
+//             :{};
+//         const query = {role: "employee", ...searchQuery};
+//         const totalEmployees = await User.countDocuments(query);
+//         const employees = await User.find(query)
+//             .skip((pageNum - 1) * limitNum)
+//             .limit(limitNum)
+//             .select("-password"); //exclude password
+//         res.status(200).json({totalEmployees,page: pageNum,employees});
+//     } catch(err){
+//         res.status(500).json({message:"Error in getting employee list",details: err.message});
+//     }
+// });
 module.exports = router;
